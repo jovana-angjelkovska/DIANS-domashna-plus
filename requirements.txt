@@ -1,0 +1,5 @@
+pandas
+scikit-learn
+kafka-python
+SQLAlchemy
+psycopg2-binary  # PostgreSQL driver

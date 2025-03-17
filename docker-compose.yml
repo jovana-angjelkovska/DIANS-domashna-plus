@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo stat | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    restart: always
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka
+    healthcheck:
+      test: ["CMD", "bash", "-c", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres1:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 'RatedR.2002'
+      POSTGRES_DB: postgres1
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres1-data:/var/lib/postgresql/data
+    healthcheck:  # <--- ADDED: Postgres Healthcheck
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres2:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 'RatedR.2002'
+      POSTGRES_DB: postgres2
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres2-data:/var/lib/postgresql/data
+    healthcheck:  # <--- ADDED: Postgres Healthcheck
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  data_analysis_service:
+    image: data-analysis-service:latest
+    build:
+      context: .  
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - kafka
+      - postgres1
+    volumes:
+      - .:/app  
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 'RatedR.2002'
+      POSTGRES_DB: postgres1
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5435
+      KAFKA_BROKER: localhost:9092  # Kafka service inside the container
+    working_dir: /app
+
+volumes:
+  zookeeper-data:
+  kafka-data:
+  postgres1-data:
+  postgres2-data:
