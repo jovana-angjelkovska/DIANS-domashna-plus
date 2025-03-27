@@ -1,4 +1,4 @@
-version: '3.8'
+#version: '3.8'
 
 services:
   zookeeper:
@@ -42,63 +42,64 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  postgres1:
+  
+  primary_postgres:
     image: postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 'RatedR.2002'
-      POSTGRES_DB: postgres1
+      POSTGRES_PASSWORD: 'diansdomashna'
+      POSTGRES_DB: primary_postgres
     ports:
-      - "5435:5432"
+      - "5440:5432"
     volumes:
-      - postgres1-data:/var/lib/postgresql/data
-    healthcheck:  # <--- ADDED: Postgres Healthcheck
+      - primary_postgres-data:/var/lib/postgresql/data
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  postgres2:
+  secondary_postgres:
     image: postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 'RatedR.2002'
-      POSTGRES_DB: postgres2
+      POSTGRES_PASSWORD: 'diansdomashna'
+      POSTGRES_DB: secondary_postgres
     ports:
-      - "5434:5432"
+      - "5441:5432"
     volumes:
-      - postgres2-data:/var/lib/postgresql/data
-    healthcheck:  # <--- ADDED: Postgres Healthcheck
+      - secondary_postgres-data:/var/lib/postgresql/data
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 5    
 
   data_analysis_service:
     image: data-analysis-service:latest
     build:
-      context: .  
+      context: .
       dockerfile: Dockerfile
     restart: always
     depends_on:
+      - primary_postgres
       - kafka
-      - postgres1
     volumes:
-      - .:/app  
+      - .:/app
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 'RatedR.2002'
-      POSTGRES_DB: postgres1
-      POSTGRES_HOST: 127.0.0.1
-      POSTGRES_PORT: 5435
-      KAFKA_BROKER: localhost:9092  # Kafka service inside the container
+      POSTGRES_PASSWORD: diansdomashna
+      POSTGRES_DB: primary_postgres
+      POSTGRES_HOST: 127.0.0.5      
+      POSTGRES_PORT: 5440                   
+      KAFKA_BROKER: localhost:9092              
     working_dir: /app
 
 volumes:
   zookeeper-data:
   kafka-data:
-  postgres1-data:
-  postgres2-data:
+  primary_postgres-data:
+  secondary_postgres-data:
+

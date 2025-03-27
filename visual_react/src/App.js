@@ -7,12 +7,12 @@ function App() {
   const [financialData, setFinancialData] = useState([]);
   const [analyzedData, setAnalyzedData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSymbol, setSelectedSymbol] = useState('AAPL'); // Default symbol
-  const [symbols, setSymbols] = useState(['AAPL', 'MSFT', 'GOOGL', 'AMZN']); // List of symbols
-  const [activeTab, setActiveTab] = useState('realTime'); // Tabs: 'realTime' or 'analyzedData'
+  const [selectedSymbol, setSelectedSymbol] = useState('AAPL'); 
+  const [symbols, setSymbols] = useState(['AAPL', 'MSFT', 'GOOGL', 'AMZN']); 
+  const [activeTab, setActiveTab] = useState('realTime'); 
 
-  const API_KEY = 'G7YX5BO1DKR2NX00'; // Replace with your actual API key
-  const TIME_INTERVAL = '5min'; // Can be '1min', '5min', '15min', etc.
+  const API_KEY = 'G7YX5BO1DKR2NX00'; 
+  const TIME_INTERVAL = '5min'; 
 
   useEffect(() => {
     if (activeTab === 'realTime') {
@@ -22,7 +22,7 @@ function App() {
     }
   }, [selectedSymbol, activeTab]);
 
-  // Fetch real-time data from Alpha Vantage
+  
   const fetchDataFromAPI = (symbol) => {
     setLoading(true);
 
@@ -41,23 +41,22 @@ function App() {
         });
   };
 
-  // Simulate fetching analyzed data (e.g., from a backend service)
   const fetchAnalyzedData = () => {
     setLoading(true);
-
-    // Simulated analyzed data (replace with actual API call)
-    const simulatedData = [
-      { date: '2023-10-01', trend: 150, prediction: 155 },
-      { date: '2023-10-02', trend: 152, prediction: 157 },
-      { date: '2023-10-03', trend: 153, prediction: 158 },
-      { date: '2023-10-04', trend: 155, prediction: 160 },
-      { date: '2023-10-05', trend: 157, prediction: 162 },
-    ];
-
-    setTimeout(() => {
-      setAnalyzedData(simulatedData);
-      setLoading(false);
-    }, 1000); // Simulate network delay
+    fetch(`http://127.0.0.1:5001/api/analyzed-data/${selectedSymbol}`)
+      .then((response) => response.json())
+      .then((data) => {
+        const formattedData = data.map((item) => ({
+          ...item,
+          date: new Date(item.date).toISOString().split("T")[0], 
+        }));
+        setAnalyzedData(formattedData); 
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching analyzed data:", error);
+        setLoading(false);
+      });
   };
 
   const formatData = (data) => {
@@ -67,14 +66,12 @@ function App() {
     }));
   };
 
-  // Render real-time data chart
   useEffect(() => {
     if (financialData.length > 0 && activeTab === 'realTime') {
       createPlotlyChart(financialData, selectedSymbol);
     }
   }, [financialData, selectedSymbol, activeTab]);
 
-  // Render analyzed data chart
   useEffect(() => {
     if (analyzedData.length > 0 && activeTab === 'analyzedData') {
       createAnalyzedDataChart(analyzedData);
@@ -104,34 +101,34 @@ function App() {
   };
 
   const createAnalyzedDataChart = (data) => {
+    const filteredData = data.filter(d => d.symbol === selectedSymbol && d.SMA_5 != null); // Filter by symbol
+  
     const trace1 = {
-      x: data.map(d => d.date),
-      y: data.map(d => d.trend),
+      x: filteredData.map(d => new Date(d.date).toLocaleDateString()),
+      y: filteredData.map(d => d.SMA_5), // Use SMA_5 as the trend
       type: 'scatter',
       mode: 'lines+markers',
-      name: 'Trend',
+      name: 'SMA_5',
+      marker: { color: 'blue' }
     };
-
+  
     const trace2 = {
-      x: data.map(d => d.date),
-      y: data.map(d => d.prediction),
+      x: filteredData.map(d => new Date(d.date).toLocaleDateString()),
+      y: filteredData.map(d => d.prediction),
       type: 'scatter',
       mode: 'lines+markers',
       name: 'Prediction',
+      marker: { color: 'orange' }
     };
-
+  
     const layout = {
-      title: 'Analyzed Data: Trends and Predictions',
-      xaxis: {
-        title: 'Date',
-      },
-      yaxis: {
-        title: 'Value',
-      },
+      title: `${selectedSymbol} Analyzed Data: SMA_5 and Predictions`,
+      xaxis: { title: 'Date' },
+      yaxis: { title: 'Value' },
     };
-
+  
     Plotly.newPlot('plotly-chart', [trace1, trace2], layout);
-  };
+  };  
 
   const handleSymbolChange = (event) => {
     setSelectedSymbol(event.target.value);
@@ -142,88 +139,96 @@ function App() {
   };
 
   return (
-      <div className="App">
-        {/* Navbar */}
-        <div className="navbar">
-          <h1>End-to-End Financial Data Solution</h1>
-          <div>
-            <select value={selectedSymbol} onChange={handleSymbolChange}>
-              {symbols.map(symbol => (
-                  <option key={symbol} value={symbol}>{symbol}</option>
-              ))}
-            </select>
-            <button onClick={() => fetchDataFromAPI(selectedSymbol)}>Refresh Data</button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="tabs">
-          <button
-              className={activeTab === 'realTime' ? 'active' : ''}
-              onClick={() => handleTabChange('realTime')}
-          >
-            Real-Time Data
-          </button>
-          <button
-              className={activeTab === 'analyzedData' ? 'active' : ''}
-              onClick={() => handleTabChange('analyzedData')}
-          >
-            Analyzed Data
-          </button>
-        </div>
-
-        {/* Loading Message */}
-        {loading ? (
-            <p className="loading">Loading data...</p>
-        ) : (
-            <>
-              {/* Real-Time Data Tab */}
-              {activeTab === 'realTime' && (
-                  <div className="chart-container">
-                    <h2>Real-Time Financial Data Visualization</h2>
-                    <div id="plotly-chart"></div>
-                  </div>
-              )}
-
-              {/* Analyzed Data Tab */}
-              {activeTab === 'analyzedData' && (
-                  <div className="chart-container">
-                    <h2>Analyzed Data Visualization</h2>
-                    <div id="plotly-chart"></div>
-                    <h3>Analyzed Data Table</h3>
-                    <table>
-                      <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Trend</th>
-                        <th>Prediction</th>
-                      </tr>
-                      </thead>
-                      <tbody>
-                      {analyzedData.map((row, index) => (
-                          <tr key={index}>
-                            <td>{row.date}</td>
-                            <td>{row.trend}</td>
-                            <td>{row.prediction}</td>
-                          </tr>
-                      ))}
-                      </tbody>
-                    </table>
-                  </div>
-              )}
-            </>
-        )}
-
-        {/* Footer */}
-        <div className="footer">
-          <p>
-            <a href="https://github.com/yourusername" target="_blank" rel="noopener noreferrer">GitHub</a>
-          </p>
-          <p>
-            Powered by React and Plotly | Data from <a href="https://www.alphavantage.co/" target="_blank" rel="noopener noreferrer">Alpha Vantage</a>
-          </p>
+    <div className="App">
+      {/* Navbar */}
+      <div className="navbar">
+        <h1>End-to-End Financial Data Solution</h1>
+        <div>
+          <select value={selectedSymbol} onChange={handleSymbolChange}>
+            {symbols.map(symbol => (
+              <option key={symbol} value={symbol}>{symbol}</option>
+            ))}
+          </select>
+          <button onClick={() => fetchDataFromAPI(selectedSymbol)}>Refresh Data</button>
         </div>
       </div>
+
+      {/* Tabs */}
+      <div className="tabs">
+        <button
+          className={activeTab === 'realTime' ? 'active' : ''}
+          onClick={() => handleTabChange('realTime')}
+        >
+          Real-Time Data
+        </button>
+        <button
+          className={activeTab === 'analyzedData' ? 'active' : ''}
+          onClick={() => handleTabChange('analyzedData')}
+        >
+          Analyzed Data
+        </button>
+      </div>
+
+      {/* Loading Message */}
+      {loading ? (
+        <p className="loading">Loading data...</p>
+      ) : (
+        <>
+          {/* Real-Time Data Tab */}
+          {activeTab === 'realTime' && (
+            <div className="chart-container">
+              <h2>Real-Time Financial Data Visualization</h2>
+              <div id="plotly-chart"></div>
+            </div>
+          )}
+
+          {/* Analyzed Data Tab */}
+          {activeTab === 'analyzedData' && (
+            <div className="chart-container">
+              <h2>Analyzed Data Visualization</h2>
+              <div id="plotly-chart"></div>
+              <h3>Analyzed Data Table</h3>
+              <table>
+                <thead>
+                  <tr>
+                  <th>Symbol</th>
+                  <th>Latest Price</th>
+                  <th>SMA 5</th>
+                  <th>SMA 10</th>
+                  <th>Predicted Next Close</th>
+                  <th>Buy/Sell/Hold</th>
+                  <th>Analysis Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {analyzedData.map((row, index) => (
+                  <tr key={index}>
+                  <td>{row.symbol}</td>
+                  <td>{row.latest_price}</td>
+                  <td>{row.SMA_5}</td>
+                  <td>{row.SMA_10}</td>
+                  <td>{row.prediction}</td>  
+                  <td>{row.recommendation}</td>  
+                  <td>{row.date}</td>  
+                  </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Footer */}
+      <div className="footer">
+        <p>
+          <a href="https://github.com/yourusername" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </p>
+        <p>
+          Powered by React and Plotly | Data from <a href="https://www.alphavantage.co/" target="_blank" rel="noopener noreferrer">Alpha Vantage</a>
+        </p>
+      </div>
+    </div>
   );
 }
 
